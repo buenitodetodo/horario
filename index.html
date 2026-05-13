@@ -220,7 +220,7 @@
     const { useState, useEffect, useMemo, useCallback } = React;
 
     // ============================================================
-    //  horario. — Tec de Monterrey schedule app
+    //  horario. — schedule app para clases/cursos
     //  Datos guardados localmente en este navegador (localStorage)
     //  Usa Exportar/Importar para mover el horario entre dispositivos
     // ============================================================
@@ -281,11 +281,9 @@
     };
 
     // ============================================================
-    //  PDF PARSER — texto del horario oficial del Tec
+    //  PDF PARSER — extrae horarios de PDFs con formato tabular
     // ============================================================
     const DAY_MAP = { Lun: 1, Mar: 2, "Mié": 3, Mie: 3, Jue: 4, Vie: 5, "Sáb": 6, Sab: 6, Dom: 0 };
-    const DAY_REGEX = /(Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom)/;
-    const SCHEDULE_LINE_RE = /^((?:Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom)(?:\s*,\s*(?:Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom))*)\s+(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*$/;
 
     const normTime = (h, m) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 
@@ -297,125 +295,156 @@
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
-        // PDF.js da items con posición; los ordenamos por Y descendente, X ascendente
-        const items = content.items
-          .filter((it) => it.str !== undefined)
-          .map((it) => ({
-            str: it.str,
-            x: it.transform[4],
-            y: it.transform[5],
-          }));
-        // agrupar por Y (línea) con tolerancia
-        items.sort((a, b) => b.y - a.y || a.x - b.x);
-        let lastY = null;
-        let line = "";
+        const items = content.items.filter((it) => it.str !== undefined && it.str.length > 0);
+
+        // 1. Agrupar items por línea visual (Y similar, tolerancia 3pt)
+        items.sort((a, b) => {
+          const dy = b.transform[5] - a.transform[5];
+          if (Math.abs(dy) > 3) return dy;
+          return a.transform[4] - b.transform[4];
+        });
+
         const lines = [];
+        let curLine = [];
+        let lastY = null;
         for (const it of items) {
-          if (lastY === null || Math.abs(it.y - lastY) < 3) {
-            line += (line ? " " : "") + it.str;
-            lastY = it.y;
+          const y = it.transform[5];
+          if (lastY === null || Math.abs(y - lastY) < 3) {
+            curLine.push(it);
           } else {
-            if (line.trim()) lines.push(line.trim());
-            line = it.str;
-            lastY = it.y;
+            if (curLine.length) lines.push(curLine);
+            curLine = [it];
+          }
+          lastY = y;
+        }
+        if (curLine.length) lines.push(curLine);
+
+        // 2. Dentro de cada línea, separar por columnas usando gaps grandes en X
+        const processedLines = [];
+        for (const line of lines) {
+          line.sort((a, b) => a.transform[4] - b.transform[4]);
+          const parts = [[line[0]]];
+          for (let k = 1; k < line.length; k++) {
+            const prev = line[k - 1];
+            const curr = line[k];
+            const prevEnd = prev.transform[4] + (prev.width || prev.str.length * 4);
+            const gap = curr.transform[4] - prevEnd;
+            if (gap > 25) {
+              parts.push([curr]); // nueva columna
+            } else {
+              parts[parts.length - 1].push(curr);
+            }
+          }
+          for (const part of parts) {
+            const text = part.map((it) => it.str).join(" ").replace(/\s+/g, " ").trim();
+            if (text) processedLines.push(text);
           }
         }
-        if (line.trim()) lines.push(line.trim());
-        allText += lines.join("\n") + "\n";
+        allText += processedLines.join("\n") + "\n";
       }
       return allText;
     }
 
     function parseTecSchedule(text) {
-      const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-      const classes = [];
+      const rawLines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+
+      // 1. Recorrer una vez para identificar secciones y bloques de materia
       let currentSection = "academica";
+      const blocks = []; // { code, name, section, lines: [] }
       let cur = null;
-      let lastRoomLocation = ""; // "HER | AULAS 4 | SALA2P"
 
-      const flush = () => {
-        if (cur && cur.schedule.length > 0) {
-          // armar el salón final
-          const parts = [];
-          if (cur._location) parts.push(cur._location.replace(/^[A-Z]{2,4}\s*\|\s*/, ""));
-          if (cur._roomNum) parts.push(`Salón ${cur._roomNum}`);
-          cur.room = parts.join(" · ");
-          delete cur._location;
-          delete cur._roomNum;
-          classes.push(cur);
-        }
-        cur = null;
-      };
+      for (let i = 0; i < rawLines.length; i++) {
+        const line = rawLines[i];
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-
-        // section headers
-        if (/LE\s*-\s*Lengua/i.test(line) || /Lengua\s+extranjera/i.test(line)) currentSection = "lenguas";
-        else if (/Materias\s+LiFE/i.test(line)) currentSection = "life";
+        // detectar headers de sección
+        if (/LE\s*-\s*Lengua/i.test(line) || /^Lengua\s+extranjera/i.test(line)) currentSection = "lenguas";
+        else if (/Materias\s+LiFE/i.test(line) || /^LiFE/i.test(line)) currentSection = "life";
         else if (/Materias\s+del\s+plan/i.test(line)) currentSection = "academica";
-        else if (/Materias\s+cocurricular/i.test(line) || /Cocurricular/i.test(line)) currentSection = "cocurricular";
+        else if (/Materias?\s+cocurricular/i.test(line) || /^Cocurricular/i.test(line)) currentSection = "cocurricular";
 
-        // start of class
-        const mMat = line.match(/^Materia:\s*(.+)$/i);
+        const mMat = line.match(/^Materia:\s*(.+?)\s*$/i);
         if (mMat) {
-          flush();
-          const code = mMat[1].trim();
-          // siguiente línea con contenido = nombre
-          let nameLine = "";
-          for (let j = i + 1; j < lines.length; j++) {
-            if (lines[j].length > 1 && !/^Materia:/i.test(lines[j])) {
-              nameLine = lines[j];
-              i = j; // skip hasta el nombre
+          if (cur) blocks.push(cur);
+          // siguiente línea con contenido útil = nombre
+          let name = "";
+          for (let j = i + 1; j < rawLines.length; j++) {
+            const cand = rawLines[j];
+            if (cand.length > 1 && !/^Materia:/i.test(cand) && !/^Materias?\s+/i.test(cand)) {
+              name = cand;
               break;
             }
           }
-          cur = {
-            id: uid(),
-            code,
-            name: nameLine,
-            room: "",
-            category: currentSection,
-            schedule: [],
-            description: "",
-            _location: "",
-            _roomNum: "",
-          };
+          cur = { code: mMat[1].trim(), name, section: currentSection, lines: [] };
           continue;
         }
 
-        if (!cur) continue;
+        if (cur) cur.lines.push(line);
+      }
+      if (cur) blocks.push(cur);
 
-        // horario: "Lun, Mié 15:00 - 16:00" o "Mié 08:00 - 09:30"
-        const mSched = line.match(SCHEDULE_LINE_RE);
-        if (mSched) {
-          const days = mSched[1].split(",").map((d) => d.trim());
-          const start = normTime(mSched[2], mSched[3]);
-          const end = normTime(mSched[4], mSched[5]);
-          days.forEach((d) => {
+      // 2. Para cada bloque, sacar horarios, salón con regex globales
+      const SCHEDULE_RE = /((?:Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom)(?:\s*,\s*(?:Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom))*)\s+(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})/g;
+      const LOCATION_RE = /([A-Z]{2,5}\s*\|\s*[^|\n]+?\s*\|\s*\S+)/;
+      const ROOM_RE = /(\S+)\s*\|\s*CRN\s*\d+/;
+
+      const classes = [];
+      for (const block of blocks) {
+        const blob = block.lines.join("\n");
+
+        // horarios — puede haber varios
+        const scheduleRaw = [];
+        let m;
+        SCHEDULE_RE.lastIndex = 0;
+        while ((m = SCHEDULE_RE.exec(blob)) !== null) {
+          const days = m[1].split(",").map((d) => d.trim());
+          const start = normTime(m[2], m[3]);
+          const end = normTime(m[4], m[5]);
+          // validar que tiene sentido (start < end, dentro de horario humano)
+          if (toMin(start) >= toMin(end)) continue;
+          for (const d of days) {
             const dn = DAY_MAP[d];
-            if (dn !== undefined) cur.schedule.push({ day: dn, start, end });
-          });
-          continue;
+            if (dn !== undefined) scheduleRaw.push({ day: dn, start, end });
+          }
         }
 
-        // ubicación: "HER | AULAS 4 | SALA2P" o "HER | Edificio Polifuncional | SBORRE1"
-        if (/^[A-Z]{2,5}\s*\|/.test(line) && line.split("|").length >= 3) {
-          cur._location = line;
-          continue;
+        // deduplicar
+        const seen = new Set();
+        const schedule = scheduleRaw.filter((s) => {
+          const k = `${s.day}-${s.start}-${s.end}`;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+
+        if (schedule.length === 0) continue;
+
+        // ubicación
+        let location = "";
+        const mLoc = blob.match(LOCATION_RE);
+        if (mLoc) location = mLoc[1].trim();
+
+        // salón
+        let roomNum = "";
+        for (const ln of block.lines) {
+          const r = ln.match(ROOM_RE);
+          if (r) { roomNum = r[1]; break; }
         }
 
-        // "201 | CRN 9040"
-        const mRoom = line.match(/^(\S+)\s*\|\s*CRN\s*\d+/);
-        if (mRoom) {
-          cur._roomNum = mRoom[1];
-          continue;
-        }
+        const roomParts = [];
+        if (location) roomParts.push(location.replace(/^[A-Z]{2,5}\s*\|\s*/, ""));
+        if (roomNum) roomParts.push(`Salón ${roomNum}`);
 
-        // resto (profesor, fechas, "Presencial", "Inglés") se ignora
+        classes.push({
+          id: uid(),
+          code: block.code,
+          name: block.name || block.code,
+          room: roomParts.join(" · "),
+          category: block.section,
+          schedule,
+          description: "",
+        });
       }
 
-      flush();
       return classes;
     }
 
@@ -686,11 +715,11 @@
               <div className="ht-empty">
                 <div className="ht-empty-title">Empieza tu <em>semestre</em></div>
                 <p className="ht-empty-sub">
-                  Sube el PDF de tu horario oficial del Tec y armo todo en automático: materias, días, horas, salones y categorías. O agrégalas a mano una por una.
+                  Sube el PDF de tu horario escolar y armo todo en automático: materias, días, horas, salones y categorías. O agrégalas a mano una por una.
                 </p>
                 <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
                   <button className="ht-btn ht-btn-primary" onClick={() => setPdfModalOpen(true)}>
-                    📄 Importar PDF del Tec
+                    📄 Importar desde PDF
                   </button>
                   <button className="ht-btn ht-btn-secondary" onClick={() => { setEditingClass(null); setEditorOpen(true); }}>
                     + Agregar manualmente
@@ -872,7 +901,7 @@
               {classes.length} clase{classes.length !== 1 ? "s" : ""} · {Object.keys(byCategory).length} categoría{Object.keys(byCategory).length !== 1 ? "s" : ""}
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <button className="ht-btn ht-btn-ghost" onClick={onImportPdf} title="Importar desde PDF del Tec">📄 PDF</button>
+              <button className="ht-btn ht-btn-ghost" onClick={onImportPdf} title="Importar desde PDF">📄 PDF</button>
               <button className="ht-btn ht-btn-ghost" onClick={onExport} title="Copiar respaldo">↗ Exportar</button>
               <button className="ht-btn ht-btn-ghost" onClick={onImport} title="Pegar respaldo">↙ Importar</button>
               <button className="ht-btn ht-btn-danger" onClick={onClearAll}>Reiniciar</button>
@@ -1064,6 +1093,8 @@
       const [stage, setStage] = useState("upload"); // upload | parsing | preview | error
       const [error, setError] = useState("");
       const [parsed, setParsed] = useState([]);
+      const [rawText, setRawText] = useState("");
+      const [showRaw, setShowRaw] = useState(false);
       const [dragging, setDragging] = useState(false);
       const fileInputRef = React.useRef(null);
 
@@ -1077,9 +1108,10 @@
         setStage("parsing");
         try {
           const text = await extractPdfText(file);
+          setRawText(text);
           const classes = parseTecSchedule(text);
           if (classes.length === 0) {
-            setError("No encontré clases en este PDF. ¿Es el horario oficial del Tec?");
+            setError("No encontré clases en este PDF. ¿El PDF tiene el horario en formato tabular con materias, días y horas? Puedes ver el texto extraído abajo para depurar.");
             setStage("error");
             return;
           }
@@ -1109,7 +1141,7 @@
               {stage === "upload" && (
                 <>
                   <p style={{ color: "var(--fg-2)", fontSize: "0.9rem", marginTop: 0, marginBottom: 16, lineHeight: 1.5 }}>
-                    Sube el PDF "Resumen del proceso" o "Mi horario" que descargas del portal del Tec. Saco materias, días, horas, salones y categorías automáticamente.
+                    Sube el PDF de tu horario escolar (formato tabular con "Materia:", días y horas). Extraigo materias, horarios, salones y los clasifico automáticamente.
                   </p>
                   <div
                     className={`ht-drop ${dragging ? "dragging" : ""}`}
@@ -1143,7 +1175,19 @@
                   <div className="ht-alert" style={{ background: "rgba(201,114,104,0.1)", borderColor: "rgba(201,114,104,0.3)", color: "#E89588" }}>
                     {error}
                   </div>
-                  <button className="ht-btn ht-btn-secondary" onClick={() => setStage("upload")} style={{ width: "100%" }}>
+                  {rawText && (
+                    <div style={{ marginBottom: 12 }}>
+                      <button className="ht-btn ht-btn-ghost" onClick={() => setShowRaw(!showRaw)} style={{ fontSize: "0.8rem" }}>
+                        {showRaw ? "▾ Ocultar" : "▸ Ver"} texto extraído (debug)
+                      </button>
+                      {showRaw && (
+                        <pre style={{ fontFamily: "var(--mono)", fontSize: "0.7rem", color: "var(--fg-3)", background: "var(--bg-3)", padding: 12, borderRadius: 8, maxHeight: 240, overflow: "auto", whiteSpace: "pre-wrap", marginTop: 8 }}>
+                          {rawText}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                  <button className="ht-btn ht-btn-secondary" onClick={() => { setStage("upload"); setRawText(""); setShowRaw(false); }} style={{ width: "100%" }}>
                     Intentar de nuevo
                   </button>
                 </>
@@ -1168,6 +1212,18 @@
                       </div>
                     ))}
                   </div>
+                  {rawText && (
+                    <div style={{ marginBottom: 8 }}>
+                      <button className="ht-btn ht-btn-ghost" onClick={() => setShowRaw(!showRaw)} style={{ fontSize: "0.75rem", padding: "4px 8px" }}>
+                        {showRaw ? "▾ Ocultar" : "▸ Ver"} texto extraído (debug)
+                      </button>
+                      {showRaw && (
+                        <pre style={{ fontFamily: "var(--mono)", fontSize: "0.65rem", color: "var(--fg-3)", background: "var(--bg-3)", padding: 10, borderRadius: 8, maxHeight: 180, overflow: "auto", whiteSpace: "pre-wrap", marginTop: 6 }}>
+                          {rawText}
+                        </pre>
+                      )}
+                    </div>
+                  )}
                   {hasExisting && (
                     <div className="ht-alert" style={{ marginBottom: 12 }}>
                       Ya tienes clases guardadas. Elige cómo combinarlas:
