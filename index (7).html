@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#14130F" />
+  <title>horario.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2314130F'/%3E%3Ctext x='50%25' y='62%25' text-anchor='middle' font-family='Georgia,serif' font-style='italic' font-size='44' fill='%23E8765C'%3Eh%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #14130F;
+      --bg-2: #1C1B17;
+      --bg-3: #25241E;
+      --fg: #F5F0E6;
+      --fg-2: #B8B2A4;
+      --fg-3: #6E6A5F;
+      --line: rgba(245,240,230,0.08);
+      --line-strong: rgba(245,240,230,0.18);
+      --accent: #E8765C;
+      --display: 'Instrument Serif', serif;
+      --body: 'Geist', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body, html { margin: 0; padding: 0; background: var(--bg); }
+    body {
+      font-family: var(--body);
+      color: var(--fg);
+      letter-spacing: -0.01em;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+    #initial-loader {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--display); font-style: italic; font-size: 1.3rem;
+      color: var(--fg-3); opacity: 0;
+      animation: fadeIn 0.4s 0.2s forwards;
+    }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    .ht-app { background: var(--bg); color: var(--fg); min-height: 100vh; min-height: 100dvh; padding-bottom: 120px; }
+    .ht-grain { position: fixed; inset: 0; pointer-events: none; opacity: 0.03; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); z-index: 0; }
+    .ht-container { max-width: 880px; margin: 0 auto; padding: 32px 24px calc(env(safe-area-inset-bottom) + 24px); position: relative; z-index: 1; }
+    @media (max-width: 600px) { .ht-container { padding: 20px 16px calc(env(safe-area-inset-bottom) + 20px); } }
+
+    .ht-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; border-bottom: 1px solid var(--line); padding-bottom: 20px; }
+    .ht-logo { font-family: var(--display); font-style: italic; font-size: 1.9rem; line-height: 1; color: var(--fg); }
+    .ht-logo span { color: var(--accent); }
+    .ht-clock { font-family: var(--mono); font-size: 0.85rem; color: var(--fg-2); text-align: right; line-height: 1.4; }
+    .ht-clock-big { font-size: 1.1rem; color: var(--fg); letter-spacing: 0.05em; }
+    .ht-clock-day { text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.2em; margin-top: 2px; }
+
+    .ht-tabs { display: flex; gap: 4px; margin-bottom: 32px; padding: 4px; background: var(--bg-2); border-radius: 999px; width: fit-content; border: 1px solid var(--line); }
+    .ht-tab { padding: 8px 18px; border-radius: 999px; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; border: none; background: transparent; font-family: var(--body); transition: all 0.2s; }
+    .ht-tab.active { background: var(--fg); color: var(--bg); font-weight: 500; }
+    .ht-tab:hover:not(.active) { color: var(--fg); }
+
+    .ht-now-card { background: var(--bg-2); border-radius: 24px; padding: 36px 32px; border: 1px solid var(--line); margin-bottom: 24px; position: relative; overflow: hidden; }
+    .ht-now-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--accent); }
+    .ht-now-eyebrow { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.25em; color: var(--accent); margin-bottom: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .ht-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+    .ht-now-name { font-family: var(--display); font-size: clamp(2.4rem, 6vw, 3.8rem); line-height: 1; color: var(--fg); margin-bottom: 18px; }
+    .ht-now-name em { color: var(--accent); }
+    .ht-now-meta { display: flex; flex-wrap: wrap; gap: 24px; font-family: var(--mono); color: var(--fg-2); font-size: 0.9rem; }
+    .ht-now-meta-item { display: flex; flex-direction: column; gap: 4px; }
+    .ht-now-meta-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--fg-3); }
+    .ht-now-meta-value { font-size: 1rem; color: var(--fg); }
+    .ht-countdown { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .ht-countdown-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--fg-3); }
+    .ht-countdown-value { font-family: var(--mono); font-size: 1.6rem; color: var(--fg); font-weight: 500; }
+
+    .ht-empty { background: var(--bg-2); border: 1px dashed var(--line-strong); border-radius: 24px; padding: 60px 32px; text-align: center; }
+    .ht-empty-title { font-family: var(--display); font-size: 2.2rem; line-height: 1.1; margin-bottom: 12px; color: var(--fg); }
+    .ht-empty-title em { color: var(--accent); }
+    .ht-empty-sub { color: var(--fg-2); margin-bottom: 28px; font-size: 0.95rem; max-width: 420px; margin-left: auto; margin-right: auto; line-height: 1.5; }
+
+    .ht-btn { padding: 12px 24px; border-radius: 999px; font-family: var(--body); font-size: 0.9rem; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; display: inline-flex; align-items: center; gap: 8px; }
+    .ht-btn-primary { background: var(--accent); color: var(--bg); }
+    .ht-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(232,118,92,0.25); }
+    .ht-btn-secondary { background: var(--bg-3); color: var(--fg); border: 1px solid var(--line); }
+    .ht-btn-secondary:hover { background: var(--line); }
+    .ht-btn-ghost { background: transparent; color: var(--fg-2); padding: 8px 14px; }
+    .ht-btn-ghost:hover { color: var(--fg); }
+    .ht-btn-danger { background: transparent; color: #C97268; border: 1px solid rgba(201,114,104,0.3); }
+    .ht-btn-danger:hover { background: rgba(201,114,104,0.1); }
+
+    .ht-section-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.25em; color: var(--fg-3); margin-bottom: 16px; font-weight: 500; }
+    .ht-day-section { margin-top: 40px; }
+    .ht-day-list { display: flex; flex-direction: column; gap: 10px; }
+    .ht-day-item { background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; display: grid; grid-template-columns: 80px 1fr auto; gap: 18px; align-items: center; transition: all 0.2s; }
+    .ht-day-item.past { opacity: 0.4; }
+    .ht-day-item.current { border-color: var(--accent); background: linear-gradient(135deg, var(--bg-2), rgba(232,118,92,0.06)); }
+    .ht-day-time { font-family: var(--mono); font-size: 0.85rem; color: var(--fg); line-height: 1.4; }
+    .ht-day-time-sep { color: var(--fg-3); font-size: 0.75rem; }
+    .ht-day-name { font-size: 1rem; color: var(--fg); font-weight: 500; margin-bottom: 4px; }
+    .ht-day-room { font-family: var(--mono); font-size: 0.75rem; color: var(--fg-2); }
+    .ht-cat-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: middle; }
+    .ht-cat-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 500; }
+
+    .ht-class-grid { display: flex; flex-direction: column; gap: 12px; }
+    .ht-class-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+    .ht-class-card:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+    .ht-class-card-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+    .ht-class-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+    .ht-class-name { font-size: 1.15rem; color: var(--fg); font-weight: 500; }
+    .ht-class-room { font-family: var(--mono); font-size: 0.75rem; color: var(--fg-2); }
+    .ht-class-schedule { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .ht-class-block { font-family: var(--mono); font-size: 0.7rem; padding: 4px 10px; border-radius: 6px; background: var(--bg-3); color: var(--fg-2); }
+    .ht-class-block-day { color: var(--fg); font-weight: 600; margin-right: 6px; }
+
+    .ht-modal-bg { position: fixed; inset: 0; background: rgba(20,19,15,0.7); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.2s ease-out; }
+    .ht-modal { background: var(--bg-2); border-radius: 24px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; border: 1px solid var(--line); animation: slideUp 0.25s cubic-bezier(0.16,1,0.3,1); }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px) } to { opacity: 1; transform: translateY(0) } }
+    .ht-modal-header { padding: 28px 28px 0; display: flex; justify-content: space-between; align-items: center; }
+    .ht-modal-title { font-family: var(--display); font-size: 2rem; line-height: 1; }
+    .ht-modal-close { background: var(--bg-3); border: none; color: var(--fg-2); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; }
+    .ht-modal-close:hover { background: var(--line); color: var(--fg); }
+    .ht-modal-body { padding: 24px 28px 28px; }
+
+    .ht-field { margin-bottom: 18px; }
+    .ht-label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--fg-3); margin-bottom: 8px; font-weight: 600; }
+    .ht-input, .ht-select { width: 100%; padding: 12px 14px; background: var(--bg-3); border: 1px solid var(--line); border-radius: 10px; color: var(--fg); font-family: var(--body); font-size: 0.95rem; transition: border 0.15s; }
+    .ht-input:focus, .ht-select:focus { outline: none; border-color: var(--accent); }
+    .ht-input::placeholder { color: var(--fg-3); }
+
+    .ht-cat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+    .ht-cat-btn { padding: 10px 12px; border-radius: 10px; background: var(--bg-3); border: 1px solid var(--line); color: var(--fg-2); cursor: pointer; font-size: 0.8rem; font-family: var(--body); text-align: left; transition: all 0.15s; display: flex; align-items: center; gap: 8px; }
+    .ht-cat-btn.active { border-color: var(--fg); color: var(--fg); background: var(--bg-3); }
+
+    .ht-day-picker { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .ht-day-btn { padding: 10px 2px; border-radius: 8px; background: var(--bg-3); border: 1px solid var(--line); color: var(--fg-2); cursor: pointer; font-size: 0.78rem; font-family: var(--body); font-weight: 600; letter-spacing: -0.02em; transition: all 0.15s; text-align: center; min-width: 0; }
+    .ht-day-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+    .ht-time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .ht-block-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .ht-block-row { background: var(--bg-3); border: 1px solid var(--line); border-radius: 10px; padding: 14px; position: relative; }
+    .ht-block-remove { position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--fg-3); cursor: pointer; font-size: 1rem; padding: 4px 8px; }
+    .ht-block-remove:hover { color: #C97268; }
+
+    .ht-form-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); gap: 12px; flex-wrap: wrap; }
+
+    .ht-fab { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 24px); right: 24px; z-index: 50; padding: 14px 22px; border-radius: 999px; background: var(--accent); color: var(--bg); font-family: var(--body); font-size: 0.95rem; font-weight: 500; border: none; cursor: pointer; box-shadow: 0 10px 30px rgba(232,118,92,0.35); display: inline-flex; align-items: center; gap: 8px; }
+    .ht-fab:hover { transform: translateY(-2px); }
+
+    .ht-footer {
+      margin-top: 80px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--fg-3);
+      letter-spacing: 0.02em;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .ht-footer-logo {
+      font-family: var(--display);
+      font-style: italic;
+      font-size: 1rem;
+      color: var(--fg-2);
+    }
+    .ht-footer-logo span { color: var(--accent); }
+    .ht-footer-version { display: inline-flex; gap: 8px; }
+    .ht-footer-channel {
+      color: var(--accent);
+      padding-left: 8px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .ht-footer-date { padding-left: 8px; opacity: 0.7; }
+
+    .ht-toast { position: fixed; bottom: calc(env(safe-area-inset-bottom) + 90px); left: 50%; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 12px 22px; border-radius: 999px; font-size: 0.9rem; font-weight: 500; z-index: 200; box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: toastIn 0.3s cubic-bezier(0.16,1,0.3,1); }
+    @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+    .ht-alert { background: rgba(201,162,39,0.08); border: 1px solid rgba(201,162,39,0.3); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; font-size: 0.85rem; color: #E0BC4A; line-height: 1.5; }
+    .ht-alert strong { color: #F0D070; }
+
+    /* Bloque libre (tiempo entre clases) */
+    .ht-free-item {
+      background: transparent;
+      border: 1px dashed var(--line-strong);
+      border-radius: 14px;
+      padding: 14px 20px;
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 18px;
+      align-items: center;
+      opacity: 0.85;
+    }
+    .ht-free-item.past { opacity: 0.3; }
+    .ht-free-item.current { border-color: var(--accent); border-style: solid; background: linear-gradient(135deg, transparent, rgba(232,118,92,0.04)); opacity: 1; }
+    .ht-free-time { font-family: var(--mono); font-size: 0.8rem; color: var(--fg-3); line-height: 1.4; }
+    .ht-free-msg { font-size: 0.95rem; color: var(--fg-2); font-family: var(--display); font-style: italic; line-height: 1.3; }
+    .ht-free-duration { font-family: var(--mono); font-size: 0.7rem; color: var(--fg-3); margin-top: 4px; }
+
+    /* PDF drop zone */
+    .ht-drop {
+      border: 2px dashed var(--line-strong);
+      border-radius: 16px;
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--bg-3);
+    }
+    .ht-drop:hover { border-color: var(--accent); background: rgba(232,118,92,0.04); }
+    .ht-drop.dragging { border-color: var(--accent); background: rgba(232,118,92,0.08); }
+    .ht-drop-icon { font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5; }
+    .ht-drop-title { font-family: var(--display); font-size: 1.4rem; margin-bottom: 6px; color: var(--fg); }
+    .ht-drop-sub { font-size: 0.85rem; color: var(--fg-2); line-height: 1.5; }
+    .ht-preview-list { max-height: 280px; overflow-y: auto; margin: 16px 0; }
+    .ht-preview-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .ht-preview-item:last-child { border-bottom: 0; }
+    .ht-preview-name { flex: 1; font-size: 0.9rem; color: var(--fg); }
+    .ht-preview-meta { font-family: var(--mono); font-size: 0.7rem; color: var(--fg-3); }
+
+    /* Lista de archivos en proceso */
+    .ht-file-list { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+    .ht-file-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      background: var(--bg-3);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 0.85rem;
+    }
+    .ht-file-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .ht-file-name { flex: 1; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ht-file-status { font-family: var(--mono); font-size: 0.72rem; color: var(--fg-3); flex-shrink: 0; }
+    .ht-file-status.done { color: #7BA05B; }
+    .ht-file-status.error { color: #C97268; }
+    .ht-file-status.processing { color: var(--accent); }
+    .ht-progress-bar {
+      width: 100%; height: 3px;
+      background: var(--bg-3); border-radius: 999px;
+      overflow: hidden; margin-top: 6px;
+    }
+    .ht-progress-fill {
+      height: 100%; background: var(--accent);
+      transition: width 0.3s ease;
+    }
+    .ht-ocr-warning {
+      font-size: 0.75rem;
+      color: var(--fg-3);
+      margin-top: 12px;
+      font-style: italic;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 500px) {
+      .ht-day-item { grid-template-columns: 70px 1fr; gap: 12px; }
+      .ht-day-item > :nth-child(3) { grid-column: 1 / -1; }
+      .ht-free-item { grid-template-columns: 70px 1fr; gap: 12px; }
+      .ht-fab { bottom: calc(env(safe-area-inset-bottom) + 16px); right: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div id="initial-loader">cargando tu horario…</div>
+  </div>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script src="https://unpkg.com/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    }
+  </script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useMemo, useCallback } = React;
+
+    // ============================================================
+    //  horario. — schedule app para clases/cursos
+    //  Datos guardados localmente en este navegador (localStorage)
+    //  Usa Exportar/Importar para mover el horario entre dispositivos
+    // ============================================================
+
+    const CATEGORIES = {
+      academica: { label: "Académica", color: "#5B9BD5", soft: "rgba(91,155,213,0.12)" },
+      life: { label: "Deporte / Life", color: "#7BA05B", soft: "rgba(123,160,91,0.14)" },
+      lenguas: { label: "Lengua Extranjera", color: "#E8765C", soft: "rgba(232,118,92,0.14)" },
+      cocurricular: { label: "Cocurricular", color: "#C9A227", soft: "rgba(201,162,39,0.14)" },
+      otro: { label: "Otro", color: "#A78BC9", soft: "rgba(167,139,201,0.14)" },
+    };
+
+    const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const DAYS_FULL = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const STORAGE_KEY = "horario-tec-v1";
+    const APP_VERSION = "0.5.2";
+    const APP_CHANNEL = "stable";
+    const APP_BUILD_DATE = "2026-05-13";
+
+    // Mensajes para bloques de tiempo libre — deterministic por slot
+    const FREE_MESSAGES = [
+      "Tiempo libre — ve a comer algo 🥪",
+      "Ventana entre clases. Avanza tareas o tira hueva 😌",
+      "Espacio para un café ☕ o respirar tantito",
+      "Hueco libre — perfecto para una vuelta rápida",
+      "Pausa. Estira las piernas, te lo ganaste",
+      "Sin clase. Hidrátate, ve al baño, etc",
+      "Tiempo muerto — productivo si tú quieres",
+      "Libre. Charla con alguien o haz tarea",
+      "Espacio entre clases — aprovecha 🌞",
+      "Pausa estratégica. No la desperdicies (o sí)",
+      "Hora libre — momento ideal para un OXXO break",
+      "Sin pendientes por ahora. Disfruta",
+    ];
+
+    const getFreeMessage = (startMin, endMin) => {
+      const idx = Math.abs((startMin * 13 + endMin * 7)) % FREE_MESSAGES.length;
+      return FREE_MESSAGES[idx];
+    };
+
+    const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+
+    const toMin = (hhmm) => {
+      if (!hhmm) return 0;
+      const [h, m] = hhmm.split(":").map(Number);
+      return h * 60 + m;
+    };
+
+    const fromMin = (mins) => {
+      const h = Math.floor(mins / 60).toString().padStart(2, "0");
+      const m = (mins % 60).toString().padStart(2, "0");
+      return `${h}:${m}`;
+    };
+
+    const fmtDuration = (mins) => {
+      if (mins < 1) return "menos de 1 min";
+      if (mins < 60) return `${Math.round(mins)} min`;
+      const h = Math.floor(mins / 60);
+      const m = Math.round(mins % 60);
+      return m === 0 ? `${h} h` : `${h} h ${m} min`;
+    };
+
+    // ============================================================
+    //  PDF PARSER — extrae horarios de PDFs con formato tabular
+    // ============================================================
+    const DAY_MAP = { Lun: 1, Mar: 2, "Mié": 3, Mie: 3, Jue: 4, Vie: 5, "Sáb": 6, Sab: 6, Dom: 0 };
+
+    const normTime = (h, m) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+
+    async function extractPdfText(file) {
+      if (!window.pdfjsLib) throw new Error("PDF.js no cargó");
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      let allText = "";
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const items = content.items.filter((it) => it.str !== undefined && it.str.length > 0);
+
+        // 1. Agrupar items por línea visual (Y similar, tolerancia 3pt)
+        items.sort((a, b) => {
+          const dy = b.transform[5] - a.transform[5];
+          if (Math.abs(dy) > 3) return dy;
+          return a.transform[4] - b.transform[4];
+        });
+
+        const lines = [];
+        let curLine = [];
+        let lastY = null;
+        for (const it of items) {
+          const y = it.transform[5];
+          if (lastY === null || Math.abs(y - lastY) < 3) {
+            curLine.push(it);
+          } else {
+            if (curLine.length) lines.push(curLine);
+            curLine = [it];
+          }
+          lastY = y;
+        }
+        if (curLine.length) lines.push(curLine);
+
+        // 2. Dentro de cada línea, separar por columnas usando gaps grandes en X
+        const processedLines = [];
+        for (const line of lines) {
+          line.sort((a, b) => a.transform[4] - b.transform[4]);
+          const parts = [[line[0]]];
+          for (let k = 1; k < line.length; k++) {
+            const prev = line[k - 1];
+            const curr = line[k];
+            const prevEnd = prev.transform[4] + (prev.width || prev.str.length * 4);
+            const gap = curr.transform[4] - prevEnd;
+            if (gap > 25) {
+              parts.push([curr]); // nueva columna
+            } else {
+              parts[parts.length - 1].push(curr);
+            }
+          }
+          for (const part of parts) {
+            const text = part.map((it) => it.str).join(" ").replace(/\s+/g, " ").trim();
+            if (text) processedLines.push(text);
+          }
+        }
+        allText += processedLines.join("\n") + "\n";
+      }
+      return allText;
+    }
+
+    // Preprocesar imagen para OCR: escalar 2x, escala de grises, aumento de contraste
+    async function preprocessImage(file) {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      try {
+        await new Promise((res, rej) => {
+          img.onload = res;
+          img.onerror = rej;
+          img.src = url;
+        });
+
+        // Escalar 2x para que el OCR vea mejor el texto chico
+        const scale = img.width < 1600 ? 2 : 1.3;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // Aplicar grayscale + aumento de contraste + threshold suave
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          // luminancia ponderada
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          // aumentar contraste: stretch around 128
+          gray = (gray - 128) * 1.8 + 128;
+          gray = Math.max(0, Math.min(255, gray));
+          // si está muy oscuro o muy claro, llevarlo a binario suave
+          if (gray < 70) gray = 0;
+          else if (gray > 200) gray = 255;
+          data[i] = data[i + 1] = data[i + 2] = gray;
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        // devolver como blob
+        return await new Promise((res) => canvas.toBlob(res, "image/png"));
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    // OCR para imágenes — usa Tesseract.js con preprocesamiento
+    // Devuelve { text, words } donde words tiene posición de cada palabra (para detectar rejillas)
+    async function extractImageText(file, onProgress) {
+      if (!window.Tesseract) throw new Error("Tesseract no cargó");
+      if (onProgress) onProgress(5);
+      const processed = await preprocessImage(file).catch(() => file);
+      const result = await Tesseract.recognize(processed, "spa+eng", {
+        logger: (m) => {
+          if (m.status === "recognizing text" && onProgress) {
+            onProgress(5 + Math.round(m.progress * 95));
+          }
+        },
+      });
+      // intentar reconstruir como rejilla si parece tabla
+      const text = result.data.text;
+      const words = (result.data.words || []).map((w) => ({
+        text: w.text,
+        x0: w.bbox?.x0 ?? 0,
+        y0: w.bbox?.y0 ?? 0,
+        x1: w.bbox?.x1 ?? 0,
+        y1: w.bbox?.y1 ?? 0,
+      }));
+
+      // log debug global accesible desde consola
+      window.__horarioDebug = window.__horarioDebug || {};
+      window.__horarioDebug.lastWords = words;
+      window.__horarioDebug.lastText = text;
+      window.__horarioDebug.gridLog = [];
+      console.log("[horario] OCR: " + words.length + " palabras detectadas. Texto bruto: " + text.length + " chars");
+
+      const gridText = tryReconstructGrid(words);
+      window.__horarioDebug.lastGridText = gridText;
+      console.log("[horario] Reconstrucción: " + (gridText ? "ÉXITO" : "FALLÓ"));
+      console.log("[horario] Para ver el log paso a paso: window.__horarioDebug.gridLog");
+
+      // devolver siempre un objeto con ambos textos para que la UI pueda mostrar debug completo
+      const finalText = gridText || text;
+      return { text: finalText, rawText: text, gridText, words, wordCount: words.length };
+    }
+
+    // ============================================================
+    //  RECONSTRUCTOR DE REJILLA v2
+    //  Estrategia: encontrar la columna de HORAS a la izquierda
+    //  (más confiable que el encabezado de días que suele ser texto blanco
+    //  sobre fondo de color y el OCR lo destruye)
+    //  Luego: detectar columnas de días por clustering de X de las celdas
+    // ============================================================
+    function tryReconstructGrid(words) {
+      const log = (msg) => {
+        if (window.__horarioDebug && window.__horarioDebug.gridLog) {
+          window.__horarioDebug.gridLog.push(msg);
+        }
+        console.log("[horario/grid] " + msg);
+      };
+
+      if (!words || words.length < 15) {
+        log("ABORT: muy pocas palabras (" + (words?.length || 0) + " < 15)");
+        return null;
+      }
+      log("inicio: " + words.length + " palabras");
+
+      const TIME_RE = /^(\d{1,2})[:.](\d{2})$/;
+
+      // 1. Buscar TODAS las palabras que parezcan tiempo
+      const timeWords = [];
+      for (const w of words) {
+        const cleaned = w.text.trim().replace(/[^\d:.]/g, "");
+        const m = cleaned.match(TIME_RE);
+        if (m) {
+          const h = parseInt(m[1], 10);
+          const min = parseInt(m[2], 10);
+          if (h >= 0 && h <= 23 && min >= 0 && min <= 59) {
+            timeWords.push({
+              x: (w.x0 + w.x1) / 2,
+              y: (w.y0 + w.y1) / 2,
+              time: `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`,
+              minutes: h * 60 + min,
+              raw: w.text,
+            });
+          }
+        }
+      }
+      log("paso 1: encontré " + timeWords.length + " palabras tipo HH:MM");
+      log("muestras: " + timeWords.slice(0, 5).map(t => `${t.time}@(${Math.round(t.x)},${Math.round(t.y)})`).join(", "));
+
+      if (timeWords.length < 4) {
+        log("ABORT: menos de 4 tiempos, no es rejilla horaria");
+        return null;
+      }
+
+      // 2. Encontrar la columna izquierda de tiempos: cluster con X más pequeño
+      timeWords.sort((a, b) => a.x - b.x);
+      const leftmostX = timeWords[0].x;
+      // expandimos a 120px para tolerar OCR (antes 80)
+      const leftColumn = timeWords.filter((t) => t.x < leftmostX + 120);
+      log("paso 2: leftmostX=" + Math.round(leftmostX) + ", tiempos en columna izq: " + leftColumn.length);
+      if (leftColumn.length < 4) {
+        log("ABORT: columna izquierda de tiempos tiene menos de 4 entradas");
+        return null;
+      }
+
+      // 3. Ordenar por Y → secuencia de horas de arriba a abajo
+      leftColumn.sort((a, b) => a.y - b.y);
+
+      // 4. Dedup tiempos muy cercanos en Y (mismo "row")
+      // tolerancia adaptativa: 1.5% del rango Y total
+      const yRangeTotal = leftColumn[leftColumn.length - 1].y - leftColumn[0].y;
+      const dedupTol = Math.max(10, yRangeTotal * 0.012);
+      log("paso 4: dedup tolerance = " + Math.round(dedupTol) + "px");
+
+      const timeRows = [];
+      for (const t of leftColumn) {
+        const last = timeRows[timeRows.length - 1];
+        if (last && Math.abs(t.y - last.y) < dedupTol) continue;
+        timeRows.push(t);
+      }
+      log("paso 4: " + timeRows.length + " filas únicas de tiempo: " + timeRows.map(t => t.time).join(", "));
+
+      if (timeRows.length < 3) {
+        log("ABORT: menos de 3 filas únicas de tiempo");
+        return null;
+      }
+
+      // 5. Determinar el área del horario: desde el primer tiempo hasta el último
+      const gridTopY = timeRows[0].y;
+      const gridBottomY = timeRows[timeRows.length - 1].y;
+      // las celdas empiezan a la derecha de la columna de tiempos, pero no muy lejos
+      const gridLeftX = leftmostX + 40;
+      log("paso 5: área grid Y=[" + Math.round(gridTopY) + "," + Math.round(gridBottomY) + "], leftX=" + Math.round(gridLeftX));
+
+      // 6. Encontrar el límite derecho: la palabra más a la derecha dentro del rango Y de la rejilla
+      let gridRightX = 0;
+      for (const w of words) {
+        const wy = (w.y0 + w.y1) / 2;
+        if (wy >= gridTopY - 20 && wy <= gridBottomY + 20) {
+          gridRightX = Math.max(gridRightX, w.x1);
+        }
+      }
+      log("paso 6: gridRightX=" + Math.round(gridRightX));
+      if (gridRightX <= gridLeftX) {
+        log("ABORT: gridRightX <= gridLeftX, área inválida");
+        return null;
+      }
+
+      // 7. Detectar columnas de días por clustering de X de las palabras dentro del grid
+      const cellWords = words.filter((w) => {
+        const wy = (w.y0 + w.y1) / 2;
+        const wx = (w.x0 + w.x1) / 2;
+        if (wy < gridTopY - 10 || wy > gridBottomY + 30) return false;
+        if (wx < gridLeftX || wx > gridRightX + 20) return false;
+        if (TIME_RE.test(w.text.trim().replace(/[^\d:.]/g, ""))) return false;
+        if (w.text.trim().length < 2) return false;
+        return true;
+      });
+
+      log("paso 7: " + cellWords.length + " palabras dentro de la rejilla");
+      log("muestras celda: " + cellWords.slice(0, 6).map(w => `"${w.text}"@(${Math.round((w.x0+w.x1)/2)},${Math.round((w.y0+w.y1)/2)})`).join(", "));
+
+      if (cellWords.length < 6) {
+        log("ABORT: menos de 6 palabras en la rejilla");
+        return null;
+      }
+
+      // 8. Asumir N columnas iguales entre gridLeftX y gridRightX
+      // Heurística: contar palabras únicas por bandas de X, encontrar el número de columnas más probable
+      // Empezar con 5 columnas (típico L-M-M-J-V), permitir 4-7
+      // Probar diferentes counts y elegir el que distribuya las palabras más uniformemente
+      let bestNumCols = 5;
+      let bestVariance = Infinity;
+      for (let numCols = 4; numCols <= 7; numCols++) {
+        const totalWidth = gridRightX - gridLeftX;
+        const colWidth = totalWidth / numCols;
+        const counts = new Array(numCols).fill(0);
+        for (const w of cellWords) {
+          const wx = (w.x0 + w.x1) / 2;
+          const col = Math.min(numCols - 1, Math.max(0, Math.floor((wx - gridLeftX) / colWidth)));
+          counts[col]++;
+        }
+        // calcular varianza: queremos distribución uniforme
+        const mean = counts.reduce((a, b) => a + b, 0) / numCols;
+        const variance = counts.reduce((s, c) => s + (c - mean) ** 2, 0) / numCols;
+        // normalizar por mean para preferir distribuciones más balanceadas
+        const normVar = variance / (mean || 1);
+        // criterio más permisivo: al menos 1 palabra en cada columna (antes 2)
+        if (normVar < bestVariance && counts.every((c) => c >= 1)) {
+          bestVariance = normVar;
+          bestNumCols = numCols;
+        }
+      }
+
+      const numCols = bestNumCols;
+      const colWidth = (gridRightX - gridLeftX) / numCols;
+      log("paso 8: best numCols=" + numCols + " (colWidth=" + Math.round(colWidth) + "px)");
+
+      // 9. Mapeo de columna → día. Asumimos lunes a viernes para 5 cols, ajustar si es 6/7
+      let colToDay;
+      if (numCols === 5) colToDay = [1, 2, 3, 4, 5];
+      else if (numCols === 6) colToDay = [1, 2, 3, 4, 5, 6];
+      else if (numCols === 7) colToDay = [1, 2, 3, 4, 5, 6, 0];
+      else colToDay = [1, 2, 3, 4];
+
+      // 10. Para cada (slot, col), juntar palabras
+      const classMap = {};
+      const slots = [];
+      const dedupTolSlot = Math.max(8, dedupTol * 0.7);
+      for (let r = 0; r < timeRows.length - 1; r++) {
+        const slot = {
+          start: timeRows[r].time,
+          end: timeRows[r + 1].time,
+          yTop: timeRows[r].y,
+          yBot: timeRows[r + 1].y,
+        };
+        if (slot.yBot - slot.yTop < dedupTolSlot) continue;
+        // skip si el rango es muy largo (más de 4 horas: probablemente saltó algo grande)
+        const slotMin = (parseInt(slot.end.split(":")[0]) * 60 + parseInt(slot.end.split(":")[1])) -
+                        (parseInt(slot.start.split(":")[0]) * 60 + parseInt(slot.start.split(":")[1]));
+        if (slotMin > 240 || slotMin <= 0) continue;
+        slots.push(slot);
+      }
+      log("paso 10: " + slots.length + " slots horarios válidos");
+
+      if (slots.length < 2) {
+        log("ABORT: menos de 2 slots válidos");
+        return null;
+      }
+
+      for (const slot of slots) {
+        for (let c = 0; c < numCols; c++) {
+          const colLeft = gridLeftX + c * colWidth;
+          const colRight = gridLeftX + (c + 1) * colWidth;
+          const cellWordsHere = cellWords.filter((w) => {
+            const wy = (w.y0 + w.y1) / 2;
+            const wx = (w.x0 + w.x1) / 2;
+            return wy > slot.yTop - 2 && wy < slot.yBot + 4 &&
+                   wx >= colLeft && wx < colRight;
+          });
+          if (cellWordsHere.length === 0) continue;
+
+          cellWordsHere.sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
+          const cellText = cellWordsHere.map((w) => w.text).join(" ").trim();
+          if (cellText.length < 3) continue;
+
+          // separar nombre / salón
+          const tokens = cellText.split(/\s+/);
+          let room = "";
+          let name = cellText;
+          // si la última palabra es un número de 2-4 cifras → salón
+          const lastTok = tokens[tokens.length - 1];
+          if (/^\d{2,4}$/.test(lastTok) && tokens.length > 1) {
+            room = lastTok;
+            name = tokens.slice(0, -1).join(" ");
+          }
+          // limpiar puntos suspensivos y caracteres raros
+          name = name.replace(/[|]+/g, "").replace(/\.{2,}$/, "").replace(/\s+/g, " ").trim();
+          if (name.length < 3) continue;
+          if (/^[\d\s.,]+$/.test(name)) continue;
+
+          const key = name.toUpperCase().replace(/\s+/g, " ");
+          if (!classMap[key]) classMap[key] = { name, room, schedule: [] };
+          classMap[key].schedule.push({ day: colToDay[c], start: slot.start, end: slot.end });
+          if (!classMap[key].room && room) classMap[key].room = room;
+        }
+      }
+
+      // 11. Fusionar slots consecutivos
+      const classes = Object.values(classMap);
+      for (const cls of classes) {
+        cls.schedule.sort((a, b) => a.day - b.day || a.start.localeCompare(b.start));
+        const merged = [];
+        for (const s of cls.schedule) {
+          const last = merged[merged.length - 1];
+          if (last && last.day === s.day && last.end === s.start) {
+            last.end = s.end;
+          } else {
+            merged.push({ ...s });
+          }
+        }
+        cls.schedule = merged;
+      }
+
+      log("paso 11: " + classes.length + " clases reconstruidas");
+      if (classes.length === 0) {
+        log("ABORT: 0 clases después de juntar celdas");
+        return null;
+      }
+
+      log("ÉXITO: nombres detectados: " + classes.map(c => c.name).join(" | "));
+
+      // 12. Generar texto formato "Materia:" para el parser principal
+      const DAY_NAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+      const lines = ["Materias del plan de estudios"];
+      classes.forEach((c, i) => {
+        lines.push(`Materia: AUTO${i + 1}`);
+        lines.push(c.name);
+        const byTimeKey = {};
+        for (const s of c.schedule) {
+          const k = `${s.start}-${s.end}`;
+          if (!byTimeKey[k]) byTimeKey[k] = [];
+          byTimeKey[k].push(s.day);
+        }
+        for (const [timeRange, days] of Object.entries(byTimeKey)) {
+          const dayStr = days.map((d) => DAY_NAMES[d]).join(", ");
+          const [start, end] = timeRange.split("-");
+          lines.push(`${dayStr} ${start} - ${end}`);
+        }
+        if (c.room) lines.push(`Salón ${c.room} | CRN 0000`);
+      });
+      return lines.join("\n");
+    }
+
+    const isImageFile = (file) => /^image\//i.test(file.type) || /\.(png|jpg|jpeg|webp|bmp)$/i.test(file.name);
+    const isPdfFile = (file) => file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+
+    function parseTecSchedule(text) {
+      const rawLines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+
+      // 1. Recorrer una vez para identificar secciones y bloques de materia
+      let currentSection = "academica";
+      const blocks = []; // { code, name, section, lines: [] }
+      let cur = null;
+
+      for (let i = 0; i < rawLines.length; i++) {
+        const line = rawLines[i];
+
+        // detectar headers de sección
+        if (/LE\s*-\s*Lengua/i.test(line) || /^Lengua\s+extranjera/i.test(line)) currentSection = "lenguas";
+        else if (/Materias\s+LiFE/i.test(line) || /^LiFE/i.test(line)) currentSection = "life";
+        else if (/Materias\s+del\s+plan/i.test(line)) currentSection = "academica";
+        else if (/Materias?\s+cocurricular/i.test(line) || /^Cocurricular/i.test(line)) currentSection = "cocurricular";
+
+        const mMat = line.match(/^Materia:\s*(.+?)\s*$/i);
+        if (mMat) {
+          if (cur) blocks.push(cur);
+          // siguiente línea con contenido útil = nombre
+          let name = "";
+          for (let j = i + 1; j < rawLines.length; j++) {
+            const cand = rawLines[j];
+            if (cand.length > 1 && !/^Materia:/i.test(cand) && !/^Materias?\s+/i.test(cand)) {
+              name = cand;
+              break;
+            }
+          }
+          cur = { code: mMat[1].trim(), name, section: currentSection, lines: [] };
+          continue;
+        }
+
+        if (cur) cur.lines.push(line);
+      }
+      if (cur) blocks.push(cur);
+
+      // 2. Para cada bloque, sacar horarios, salón con regex globales
+      const SCHEDULE_RE = /((?:Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom)(?:\s*,\s*(?:Lun|Mar|Mié|Mie|Jue|Vie|Sáb|Sab|Dom))*)\s+(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})/g;
+      const LOCATION_RE = /([A-Z]{2,5}\s*\|\s*[^|\n]+?\s*\|\s*\S+)/;
+      const ROOM_RE = /(\S+)\s*\|\s*CRN\s*\d+/;
+
+      const classes = [];
+      for (const block of blocks) {
+        const blob = block.lines.join("\n");
+
+        // horarios — puede haber varios
+        const scheduleRaw = [];
+        let m;
+        SCHEDULE_RE.lastIndex = 0;
+        while ((m = SCHEDULE_RE.exec(blob)) !== null) {
+          const days = m[1].split(",").map((d) => d.trim());
+          const start = normTime(m[2], m[3]);
+          const end = normTime(m[4], m[5]);
+          // validar que tiene sentido (start < end, dentro de horario humano)
+          if (toMin(start) >= toMin(end)) continue;
+          for (const d of days) {
+            const dn = DAY_MAP[d];
+            if (dn !== undefined) scheduleRaw.push({ day: dn, start, end });
+          }
+        }
+
+        // deduplicar
+        const seen = new Set();
+        const schedule = scheduleRaw.filter((s) => {
+          const k = `${s.day}-${s.start}-${s.end}`;
+          if (seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+
+        if (schedule.length === 0) continue;
+
+        // ubicación
+        let location = "";
+        const mLoc = blob.match(LOCATION_RE);
+        if (mLoc) location = mLoc[1].trim();
+
+        // salón
+        let roomNum = "";
+        for (const ln of block.lines) {
+          const r = ln.match(ROOM_RE);
+          if (r) { roomNum = r[1]; break; }
+        }
+
+        const roomParts = [];
+        if (location) roomParts.push(location.replace(/^[A-Z]{2,5}\s*\|\s*/, ""));
+        if (roomNum) roomParts.push(`Salón ${roomNum}`);
+
+        classes.push({
+          id: uid(),
+          code: block.code,
+          name: block.name || block.code,
+          room: roomParts.join(" · "),
+          category: block.section,
+          schedule,
+          description: "",
+        });
+      }
+
+      return classes;
+    }
+
+    // ============================================================
+    //  TIMELINE — incluye bloques de tiempo libre entre clases
+    // ============================================================
+    const buildTimelineWithFreeSlots = (todayBlocks) => {
+      if (todayBlocks.length === 0) return [];
+      const slots = [];
+      for (let i = 0; i < todayBlocks.length; i++) {
+        slots.push({ type: "class", ...todayBlocks[i] });
+        if (i < todayBlocks.length - 1) {
+          const gap = todayBlocks[i + 1].start - todayBlocks[i].end;
+          if (gap >= 15) {
+            const start = todayBlocks[i].end;
+            const end = todayBlocks[i + 1].start;
+            slots.push({
+              type: "free",
+              start,
+              end,
+              startStr: fromMin(start),
+              endStr: fromMin(end),
+              message: getFreeMessage(start, end),
+            });
+          }
+        }
+      }
+      return slots;
+    };
+
+    const analyzeSchedule = (classes, now) => {
+      const day = now.getDay();
+      const currentMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+      const allBlocks = [];
+      classes.forEach((c) => {
+        c.schedule.forEach((s, idx) => {
+          allBlocks.push({
+            classId: c.id, name: c.name, room: c.room, category: c.category,
+            day: s.day, start: toMin(s.start), end: toMin(s.end),
+            startStr: s.start, endStr: s.end, blockIdx: idx,
+          });
+        });
+      });
+      const todayBlocks = allBlocks.filter((b) => b.day === day).sort((a, b) => a.start - b.start);
+      let current = null, next = null;
+      for (const b of todayBlocks) {
+        if (currentMin >= b.start && currentMin < b.end) { current = b; break; }
+      }
+      for (let offset = 0; offset < 7; offset++) {
+        const checkDay = (day + offset) % 7;
+        const blocksThatDay = allBlocks.filter((b) => b.day === checkDay).sort((a, b) => a.start - b.start);
+        for (const b of blocksThatDay) {
+          if (offset === 0) {
+            if (b.start > currentMin) { next = { ...b, dayOffset: 0 }; break; }
+          } else {
+            next = { ...b, dayOffset: offset }; break;
+          }
+        }
+        if (next) break;
+      }
+      return { current, next, todayBlocks, allBlocks };
+    };
+
+    const detectOverlaps = (classes) => {
+      const blocks = [];
+      classes.forEach((c) => {
+        c.schedule.forEach((s) => {
+          blocks.push({ classId: c.id, name: c.name, day: s.day, start: toMin(s.start), end: toMin(s.end), startStr: s.start, endStr: s.end });
+        });
+      });
+      const overlaps = [];
+      for (let i = 0; i < blocks.length; i++) {
+        for (let j = i + 1; j < blocks.length; j++) {
+          const a = blocks[i], b = blocks[j];
+          if (a.day === b.day && a.start < b.end && b.start < a.end && a.classId !== b.classId) {
+            overlaps.push({ a, b });
+          }
+        }
+      }
+      return overlaps;
+    };
+
+    // ============================================================
+    //  STORAGE — localStorage con verificación
+    // ============================================================
+    const storage = {
+      isAvailable: () => {
+        try {
+          const k = "__ht_test__";
+          localStorage.setItem(k, "1");
+          localStorage.removeItem(k);
+          return true;
+        } catch { return false; }
+      },
+      load: () => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch { return []; }
+      },
+      save: (classes) => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(classes));
+          return true;
+        } catch { return false; }
+      },
+    };
+
+    // ============================================================
+    //  APP
+    // ============================================================
+    function App() {
+      const [classes, setClasses] = useState([]);
+      const [loaded, setLoaded] = useState(false);
+      const [editorOpen, setEditorOpen] = useState(false);
+      const [editingClass, setEditingClass] = useState(null);
+      const [view, setView] = useState("home");
+      const [now, setNow] = useState(new Date());
+      const [toast, setToast] = useState(null);
+      const [storageOk, setStorageOk] = useState(true);
+      const [pdfModalOpen, setPdfModalOpen] = useState(false);
+
+      useEffect(() => {
+        const t = setInterval(() => setNow(new Date()), 1000);
+        return () => clearInterval(t);
+      }, []);
+
+      useEffect(() => {
+        const ok = storage.isAvailable();
+        setStorageOk(ok);
+        if (ok) setClasses(storage.load());
+        setLoaded(true);
+      }, []);
+
+      const showToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 2800);
+      };
+
+      const persist = useCallback((next) => {
+        if (!storageOk) return;
+        if (!storage.save(next)) {
+          setStorageOk(false);
+          showToast("⚠ No se pudo guardar — usa Exportar como respaldo");
+        }
+      }, [storageOk]);
+
+      const upsertClass = (cls) => {
+        setClasses((prev) => {
+          const exists = prev.some((c) => c.id === cls.id);
+          const next = exists ? prev.map((c) => (c.id === cls.id ? cls : c)) : [...prev, cls];
+          persist(next);
+          return next;
+        });
+        setEditorOpen(false);
+        setEditingClass(null);
+        showToast(`✓ ${cls.name} guardada`);
+      };
+
+      const deleteClass = (id) => {
+        setClasses((prev) => {
+          const next = prev.filter((c) => c.id !== id);
+          persist(next);
+          return next;
+        });
+        setEditorOpen(false);
+        setEditingClass(null);
+        showToast("Clase eliminada");
+      };
+
+      const clearAll = () => {
+        if (!window.confirm("¿Borrar TODO el horario? Esto no se puede deshacer.")) return;
+        setClasses([]);
+        persist([]);
+        showToast("Horario reiniciado");
+      };
+
+      const exportData = async () => {
+        const data = JSON.stringify(classes, null, 2);
+        try {
+          await navigator.clipboard.writeText(data);
+          showToast("✓ Horario copiado al portapapeles");
+        } catch {
+          window.prompt("Copia este texto y guárdalo donde quieras:", data);
+        }
+      };
+
+      const importData = () => {
+        const raw = window.prompt("Pega aquí el JSON de tu horario:");
+        if (!raw) return;
+        try {
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) throw new Error("formato inválido");
+          for (const c of parsed) {
+            if (!c.id || !c.name || !Array.isArray(c.schedule)) throw new Error("clase mal formada");
+          }
+          setClasses(parsed);
+          persist(parsed);
+          showToast(`✓ ${parsed.length} clase${parsed.length !== 1 ? "s" : ""} importada${parsed.length !== 1 ? "s" : ""}`);
+        } catch {
+          showToast("⚠ El texto no es un horario válido");
+        }
+      };
+
+      const importFromPdf = (parsedClasses, mode = "replace") => {
+        // mode: "replace" o "merge"
+        let next;
+        if (mode === "merge") {
+          const existingCodes = new Set(classes.map((c) => c.code).filter(Boolean));
+          const toAdd = parsedClasses.filter((c) => !c.code || !existingCodes.has(c.code));
+          next = [...classes, ...toAdd];
+        } else {
+          next = parsedClasses;
+        }
+        setClasses(next);
+        persist(next);
+        setPdfModalOpen(false);
+        showToast(`✓ ${parsedClasses.length} clase${parsedClasses.length !== 1 ? "s" : ""} importada${parsedClasses.length !== 1 ? "s" : ""} del PDF`);
+      };
+
+      const { current, next, todayBlocks } = useMemo(() => analyzeSchedule(classes, now), [classes, now]);
+      const overlaps = useMemo(() => detectOverlaps(classes), [classes]);
+
+      if (!loaded) return null;
+
+      return (
+        <div className="ht-app">
+          <div className="ht-grain" />
+          <div className="ht-container">
+            <header className="ht-header">
+              <div className="ht-logo">horario<span>.</span></div>
+              <div className="ht-clock">
+                <div className="ht-clock-big">
+                  {now.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}
+                </div>
+                <div className="ht-clock-day">
+                  {DAYS_FULL[now.getDay()]} · {now.getDate()} {now.toLocaleString("es-MX", { month: "short" })}
+                </div>
+              </div>
+            </header>
+
+            {classes.length > 0 && (
+              <div className="ht-tabs">
+                <button className={`ht-tab ${view === "home" ? "active" : ""}`} onClick={() => setView("home")}>Ahora</button>
+                <button className={`ht-tab ${view === "schedule" ? "active" : ""}`} onClick={() => setView("schedule")}>Mi horario</button>
+              </div>
+            )}
+
+            {!storageOk && (
+              <div className="ht-alert" style={{ background: "rgba(232,118,92,0.08)", borderColor: "rgba(232,118,92,0.35)", color: "#F0A090" }}>
+                <strong>⚠ Tu navegador no permite guardar.</strong> Puede ser modo privado/incógnito. Usa Exportar/Importar para conservar tu horario manualmente.
+              </div>
+            )}
+
+            {overlaps.length > 0 && (
+              <div className="ht-alert">
+                <strong>⚠ Encontré {overlaps.length} traslape{overlaps.length > 1 ? "s" : ""}:</strong>{" "}
+                {overlaps.slice(0, 2).map((o, i) => (
+                  <span key={i}>{o.a.name} y {o.b.name} en {DAYS[o.a.day]}{i < overlaps.slice(0, 2).length - 1 ? "; " : ""}</span>
+                ))}
+                {overlaps.length > 2 && ` y ${overlaps.length - 2} más`}.
+              </div>
+            )}
+
+            {classes.length === 0 && (
+              <div className="ht-empty">
+                <div className="ht-empty-title">Empieza tu <em>semestre</em></div>
+                <p className="ht-empty-sub">
+                  Sube el PDF de tu horario escolar y armo todo en automático: materias, días, horas, salones y categorías. O agrégalas a mano una por una.
+                </p>
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                  <button className="ht-btn ht-btn-primary" onClick={() => setPdfModalOpen(true)}>
+                    📄 Importar desde PDF
+                  </button>
+                  <button className="ht-btn ht-btn-secondary" onClick={() => { setEditingClass(null); setEditorOpen(true); }}>
+                    + Agregar manualmente
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {classes.length > 0 && view === "home" && (
+              <HomeView current={current} next={next} todayBlocks={todayBlocks} now={now} classes={classes}
+                onEdit={(cls) => { setEditingClass(cls); setEditorOpen(true); }} />
+            )}
+
+            {classes.length > 0 && view === "schedule" && (
+              <ScheduleView classes={classes}
+                onEdit={(cls) => { setEditingClass(cls); setEditorOpen(true); }}
+                onClearAll={clearAll} onExport={exportData} onImport={importData}
+                onImportPdf={() => setPdfModalOpen(true)} />
+            )}
+
+            <footer className="ht-footer">
+              <span className="ht-footer-logo">horario<span>.</span></span>
+              <span className="ht-footer-version">
+                v{APP_VERSION}
+                {APP_CHANNEL !== "stable" && <span className="ht-footer-channel">·{APP_CHANNEL}</span>}
+                <span className="ht-footer-date">·{APP_BUILD_DATE}</span>
+              </span>
+            </footer>
+          </div>
+
+          {classes.length > 0 && (
+            <button className="ht-fab" onClick={() => { setEditingClass(null); setEditorOpen(true); }}>
+              <span style={{ fontSize: "1.1rem" }}>+</span> Agregar clase
+            </button>
+          )}
+
+          {editorOpen && (
+            <ClassEditor initial={editingClass} onSave={upsertClass} onDelete={deleteClass}
+              onClose={() => { setEditorOpen(false); setEditingClass(null); }} />
+          )}
+
+          {pdfModalOpen && (
+            <PdfImportModal
+              hasExisting={classes.length > 0}
+              onImport={importFromPdf}
+              onClose={() => setPdfModalOpen(false)}
+            />
+          )}
+
+          {toast && <div className="ht-toast">{toast}</div>}
+        </div>
+      );
+    }
+
+    function HomeView({ current, next, todayBlocks, now, classes, onEdit }) {
+      const currentMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+      let countdown = null;
+      if (current) {
+        countdown = { label: "Termina en", value: fmtDuration(current.end - currentMin) };
+      } else if (next) {
+        let mins;
+        if (next.dayOffset === 0) mins = next.start - currentMin;
+        else mins = (24 * 60 - currentMin) + (next.dayOffset - 1) * 24 * 60 + next.start;
+        countdown = { label: "Empieza en", value: fmtDuration(mins) };
+      }
+      const findClass = (id) => classes.find((c) => c.id === id);
+      const currentClassFull = current ? findClass(current.classId) : null;
+      const nextClassFull = next ? findClass(next.classId) : null;
+
+      return (
+        <>
+          {current ? (
+            <div className="ht-now-card">
+              <div className="ht-now-eyebrow"><span className="ht-pulse" />En curso<CategoryPill cat={current.category} /></div>
+              <div className="ht-now-name">{current.name}</div>
+              {currentClassFull?.description && (
+                <div style={{ fontFamily: "var(--display)", fontStyle: "italic", color: "var(--fg-2)", marginBottom: 18, fontSize: "1rem", lineHeight: 1.4 }}>
+                  {currentClassFull.description}
+                </div>
+              )}
+              <div className="ht-now-meta">
+                <div className="ht-now-meta-item"><div className="ht-now-meta-label">Salón</div><div className="ht-now-meta-value">{current.room || "—"}</div></div>
+                <div className="ht-now-meta-item"><div className="ht-now-meta-label">Horario</div><div className="ht-now-meta-value">{current.startStr} – {current.endStr}</div></div>
+                <div className="ht-now-meta-item"><div className="ht-now-meta-label">Duración</div><div className="ht-now-meta-value">{fmtDuration(current.end - current.start)}</div></div>
+              </div>
+              {countdown && (
+                <div className="ht-countdown">
+                  <span className="ht-countdown-label">{countdown.label}</span>
+                  <span className="ht-countdown-value">{countdown.value}</span>
+                </div>
+              )}
+            </div>
+          ) : next ? (
+            <div className="ht-now-card">
+              <div className="ht-now-eyebrow">Siguiente clase <CategoryPill cat={next.category} /></div>
+              <div className="ht-now-name">{next.name}</div>
+              {nextClassFull?.description && (
+                <div style={{ fontFamily: "var(--display)", fontStyle: "italic", color: "var(--fg-2)", marginBottom: 18, fontSize: "1rem", lineHeight: 1.4 }}>
+                  {nextClassFull.description}
+                </div>
+              )}
+              <div className="ht-now-meta">
+                <div className="ht-now-meta-item"><div className="ht-now-meta-label">Salón</div><div className="ht-now-meta-value">{next.room || "—"}</div></div>
+                <div className="ht-now-meta-item"><div className="ht-now-meta-label">Cuándo</div><div className="ht-now-meta-value">{next.dayOffset === 0 ? "Hoy" : next.dayOffset === 1 ? "Mañana" : DAYS_FULL[next.day]} · {next.startStr}</div></div>
+                <div className="ht-now-meta-item"><div className="ht-now-meta-label">Duración</div><div className="ht-now-meta-value">{fmtDuration(next.end - next.start)}</div></div>
+              </div>
+              {countdown && (
+                <div className="ht-countdown">
+                  <span className="ht-countdown-label">{countdown.label}</span>
+                  <span className="ht-countdown-value">{countdown.value}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="ht-now-card">
+              <div className="ht-now-eyebrow">Sin clases próximas</div>
+              <div className="ht-now-name">Libre <em>por ahora</em></div>
+              <div className="ht-now-meta">
+                <div className="ht-now-meta-item"><div className="ht-now-meta-value" style={{ color: "var(--fg-2)", fontFamily: "var(--body)", fontSize: "0.95rem" }}>No tienes clases configuradas en los próximos 7 días.</div></div>
+              </div>
+            </div>
+          )}
+
+          {todayBlocks.length > 0 && (
+            <div className="ht-day-section">
+              <div className="ht-section-label">Hoy · {DAYS_FULL[now.getDay()]}</div>
+              <div className="ht-day-list">
+                {buildTimelineWithFreeSlots(todayBlocks).map((slot, i) => {
+                  if (slot.type === "free") {
+                    const isPast = currentMin >= slot.end;
+                    const isCurrent = currentMin >= slot.start && currentMin < slot.end;
+                    return (
+                      <div key={`free-${i}`} className={`ht-free-item ${isPast ? "past" : ""} ${isCurrent ? "current" : ""}`}>
+                        <div className="ht-free-time">
+                          {slot.startStr}
+                          <div className="ht-day-time-sep">↓</div>
+                          {slot.endStr}
+                        </div>
+                        <div>
+                          <div className="ht-free-msg">{slot.message}</div>
+                          <div className="ht-free-duration">{fmtDuration(slot.end - slot.start)} libre</div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  const b = slot;
+                  const isPast = currentMin >= b.end;
+                  const isCurrent = currentMin >= b.start && currentMin < b.end;
+                  const cls = findClass(b.classId);
+                  return (
+                    <div key={`class-${i}`} className={`ht-day-item ${isPast ? "past" : ""} ${isCurrent ? "current" : ""}`}
+                      onClick={() => cls && onEdit(cls)} style={{ cursor: "pointer" }}>
+                      <div className="ht-day-time">{b.startStr}<div className="ht-day-time-sep">↓</div>{b.endStr}</div>
+                      <div>
+                        <div className="ht-day-name">{b.name}</div>
+                        <div className="ht-day-room">
+                          <span className="ht-cat-dot" style={{ background: CATEGORIES[b.category]?.color }} />
+                          {b.room || "sin salón"} · {fmtDuration(b.end - b.start)}
+                        </div>
+                        {cls?.description && (
+                          <div style={{ fontSize: "0.75rem", color: "var(--fg-3)", marginTop: 6, fontStyle: "italic" }}>
+                            {cls.description}
+                          </div>
+                        )}
+                      </div>
+                      <div>{isCurrent && <CategoryPill cat={b.category} />}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      );
+    }
+
+    function ScheduleView({ classes, onEdit, onClearAll, onExport, onImport, onImportPdf }) {
+      const byCategory = useMemo(() => {
+        const g = {};
+        classes.forEach((c) => { if (!g[c.category]) g[c.category] = []; g[c.category].push(c); });
+        return g;
+      }, [classes]);
+
+      return (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+            <div className="ht-section-label" style={{ margin: 0 }}>
+              {classes.length} clase{classes.length !== 1 ? "s" : ""} · {Object.keys(byCategory).length} categoría{Object.keys(byCategory).length !== 1 ? "s" : ""}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button className="ht-btn ht-btn-ghost" onClick={onImportPdf} title="Importar desde PDF">📄 PDF</button>
+              <button className="ht-btn ht-btn-ghost" onClick={onExport} title="Copiar respaldo">↗ Exportar</button>
+              <button className="ht-btn ht-btn-ghost" onClick={onImport} title="Pegar respaldo">↙ Importar</button>
+              <button className="ht-btn ht-btn-danger" onClick={onClearAll}>Reiniciar</button>
+            </div>
+          </div>
+
+          {Object.entries(byCategory).map(([catKey, cls]) => (
+            <div key={catKey} style={{ marginBottom: 32 }}>
+              <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="ht-cat-dot" style={{ background: CATEGORIES[catKey]?.color, width: 12, height: 12 }} />
+                <span style={{ fontSize: "0.85rem", color: "var(--fg)", fontWeight: 500 }}>{CATEGORIES[catKey]?.label || catKey}</span>
+                <span style={{ fontSize: "0.75rem", color: "var(--fg-3)", fontFamily: "var(--mono)" }}>{cls.length}</span>
+              </div>
+              <div className="ht-class-grid">
+                {cls.map((c) => (
+                  <div key={c.id} className="ht-class-card" onClick={() => onEdit(c)}>
+                    <div className="ht-class-card-bar" style={{ background: CATEGORIES[c.category]?.color }} />
+                    <div className="ht-class-head">
+                      <div className="ht-class-name">{c.name}</div>
+                      <div className="ht-class-room">{c.room || "sin salón"}</div>
+                    </div>
+                    <div className="ht-class-schedule">
+                      {c.schedule.map((s, i) => (
+                        <div key={i} className="ht-class-block">
+                          <span className="ht-class-block-day">{DAYS[s.day]}</span>{s.start}–{s.end}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </>
+      );
+    }
+
+    function CategoryPill({ cat }) {
+      const c = CATEGORIES[cat];
+      if (!c) return null;
+      return <span className="ht-cat-pill" style={{ background: c.soft, color: c.color }}>{c.label}</span>;
+    }
+
+    function ClassEditor({ initial, onSave, onDelete, onClose }) {
+      const [name, setName] = useState(initial?.name || "");
+      const [room, setRoom] = useState(initial?.room || "");
+      const [category, setCategory] = useState(initial?.category || "academica");
+      const [description, setDescription] = useState(initial?.description || "");
+      const [schedule, setSchedule] = useState(
+        initial?.schedule?.length ? initial.schedule : [{ day: 1, start: "09:00", end: "10:30" }]
+      );
+      const [error, setError] = useState("");
+
+      const addBlock = () => {
+        const usedDays = new Set(schedule.map((s) => s.day));
+        let suggestDay = 1;
+        for (let d = 1; d <= 5; d++) { if (!usedDays.has(d)) { suggestDay = d; break; } }
+        const lastBlock = schedule[schedule.length - 1];
+        setSchedule([...schedule, { day: suggestDay, start: lastBlock?.start || "09:00", end: lastBlock?.end || "10:30" }]);
+      };
+
+      const removeBlock = (i) => {
+        if (schedule.length === 1) { setError("Necesitas al menos un horario."); return; }
+        setSchedule(schedule.filter((_, idx) => idx !== i));
+      };
+
+      const updateBlock = (i, field, val) => {
+        const next = [...schedule];
+        next[i] = { ...next[i], [field]: val };
+        if (field === "start" && toMin(val) >= toMin(next[i].end)) {
+          const newEndMin = Math.min(toMin(val) + 90, 23 * 60 + 30);
+          next[i].end = fromMin(newEndMin);
+        }
+        if (field === "end" && toMin(val) <= toMin(next[i].start)) {
+          const newStartMin = Math.max(toMin(val) - 90, 0);
+          next[i].start = fromMin(newStartMin);
+        }
+        setSchedule(next);
+      };
+
+      const handleSave = () => {
+        setError("");
+        if (!name.trim()) { setError("Pon un nombre a la clase."); return; }
+        if (!schedule.length) { setError("Agrega al menos un horario."); return; }
+        const bad = [];
+        schedule.forEach((s, idx) => {
+          if (toMin(s.start) >= toMin(s.end)) bad.push(`bloque ${idx + 1} (${DAYS_FULL[s.day]})`);
+        });
+        if (bad.length) { setError(`Horas inválidas en: ${bad.join(", ")}.`); return; }
+        onSave({ id: initial?.id || uid(), code: initial?.code, name: name.trim(), room: room.trim(), category, schedule, description: description.trim() });
+      };
+
+      const handleDelete = () => {
+        if (!initial?.id) return;
+        if (window.confirm(`¿Eliminar "${initial.name}"?`)) onDelete(initial.id);
+      };
+
+      return (
+        <div className="ht-modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
+          <div className="ht-modal">
+            <div className="ht-modal-header">
+              <div className="ht-modal-title">{initial ? "Editar clase" : "Nueva clase"}</div>
+              <button className="ht-modal-close" onClick={onClose}>×</button>
+            </div>
+            <div className="ht-modal-body">
+              {error && <div className="ht-alert" style={{ background: "rgba(201,114,104,0.1)", borderColor: "rgba(201,114,104,0.3)", color: "#E89588" }}>{error}</div>}
+
+              <div className="ht-field">
+                <label className="ht-label">Nombre de la clase</label>
+                <input className="ht-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Cálculo Diferencial" autoFocus />
+              </div>
+
+              <div className="ht-field">
+                <label className="ht-label">Salón</label>
+                <input className="ht-input" value={room} onChange={(e) => setRoom(e.target.value)} placeholder="Aula 1-203 (opcional)" />
+              </div>
+
+              <div className="ht-field">
+                <label className="ht-label">Descripción / notas <span style={{ textTransform: "none", letterSpacing: 0, color: "var(--fg-3)", fontWeight: 400 }}>(opcional)</span></label>
+                <input className="ht-input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Profe relajado, llevar laptop, etc." />
+              </div>
+
+              <div className="ht-field">
+                <label className="ht-label">Categoría</label>
+                <div className="ht-cat-grid">
+                  {Object.entries(CATEGORIES).map(([key, c]) => (
+                    <button key={key} type="button" className={`ht-cat-btn ${category === key ? "active" : ""}`}
+                      onClick={() => setCategory(key)} style={category === key ? { borderColor: c.color, color: c.color } : {}}>
+                      <span className="ht-cat-dot" style={{ background: c.color }} />{c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="ht-field">
+                <label className="ht-label">Horarios</label>
+                <div className="ht-block-list">
+                  {schedule.map((s, i) => (
+                    <div key={i} className="ht-block-row">
+                      {schedule.length > 1 && (
+                        <>
+                          <div style={{ position: "absolute", top: 10, left: 14, fontSize: "0.65rem", color: "var(--fg-3)", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 600 }}>Bloque {i + 1}</div>
+                          <button className="ht-block-remove" onClick={() => removeBlock(i)}>×</button>
+                        </>
+                      )}
+                      <div style={{ marginTop: schedule.length > 1 ? 24 : 0, marginBottom: 10 }}>
+                        <div className="ht-label" style={{ marginBottom: 6 }}>
+                          Día <span style={{ color: "var(--accent)", fontFamily: "var(--body)", textTransform: "none", letterSpacing: 0, marginLeft: 6 }}>{DAYS_FULL[s.day]}</span>
+                        </div>
+                        <div className="ht-day-picker">
+                          {DAYS.map((d, di) => (
+                            <button key={di} type="button" className={`ht-day-btn ${s.day === di ? "active" : ""}`}
+                              onClick={() => updateBlock(i, "day", di)}>{d}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="ht-time-row">
+                        <div>
+                          <div className="ht-label" style={{ marginBottom: 6 }}>Inicio</div>
+                          <input type="time" className="ht-input" value={s.start} onChange={(e) => updateBlock(i, "start", e.target.value)} />
+                        </div>
+                        <div>
+                          <div className="ht-label" style={{ marginBottom: 6 }}>Fin</div>
+                          <input type="time" className="ht-input" value={s.end} onChange={(e) => updateBlock(i, "end", e.target.value)} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="ht-btn ht-btn-secondary" type="button" onClick={addBlock} style={{ width: "100%" }}>
+                  + Otro día/horario
+                </button>
+              </div>
+
+              <div className="ht-form-actions">
+                {initial && <button className="ht-btn ht-btn-danger" type="button" onClick={handleDelete}>Eliminar</button>}
+                <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+                  <button className="ht-btn ht-btn-ghost" type="button" onClick={onClose}>Cancelar</button>
+                  <button className="ht-btn ht-btn-primary" type="button" onClick={handleSave}>Guardar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function PdfImportModal({ hasExisting, onImport, onClose }) {
+      const [stage, setStage] = useState("upload"); // upload | processing | preview | error
+      const [error, setError] = useState("");
+      const [parsed, setParsed] = useState([]);
+      const [rawText, setRawText] = useState("");
+      const [showRaw, setShowRaw] = useState(false);
+      const [dragging, setDragging] = useState(false);
+      const [files, setFiles] = useState([]); // [{ name, type, status, progress, text, error }]
+      const fileInputRef = React.useRef(null);
+
+      const updateFile = (idx, patch) => {
+        setFiles((prev) => prev.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
+      };
+
+      const processFiles = async (rawFiles) => {
+        const validFiles = Array.from(rawFiles).filter((f) => isPdfFile(f) || isImageFile(f));
+        if (validFiles.length === 0) {
+          setError("Solo PDFs e imágenes (PNG, JPG). ¿Otro formato? Convíertelo primero.");
+          setStage("error");
+          return;
+        }
+
+        const initialState = validFiles.map((f) => ({
+          name: f.name,
+          type: isPdfFile(f) ? "pdf" : "image",
+          status: "pending",
+          progress: 0,
+          text: "",
+          error: "",
+        }));
+        setFiles(initialState);
+        setStage("processing");
+
+        const allTexts = [];
+        const fileDebug = [];
+        for (let i = 0; i < validFiles.length; i++) {
+          const file = validFiles[i];
+          updateFile(i, { status: "processing", progress: 0 });
+          try {
+            let text;
+            let debugInfo = null;
+            if (isPdfFile(file)) {
+              text = await extractPdfText(file);
+              updateFile(i, { progress: 100 });
+            } else {
+              const result = await extractImageText(file, (pct) => updateFile(i, { progress: pct }));
+              text = result.text;
+              debugInfo = {
+                name: file.name,
+                wordCount: result.wordCount,
+                gridSuccess: !!result.gridText,
+                rawText: result.rawText,
+                gridText: result.gridText,
+              };
+            }
+            updateFile(i, { status: "done", text, progress: 100 });
+            allTexts.push(text);
+            if (debugInfo) fileDebug.push(debugInfo);
+          } catch (e) {
+            console.error("[horario] error procesando archivo:", e);
+            updateFile(i, { status: "error", error: e.message || String(e) });
+          }
+        }
+
+        // unir todos los textos extraídos y parsear como uno solo
+        const combined = allTexts.join("\n\n--- ARCHIVO ---\n\n");
+
+        // construir rawText extendido con info de debug
+        let debugReport = combined;
+        if (fileDebug.length > 0) {
+          debugReport = "=== INFO DE OCR ===\n";
+          fileDebug.forEach((d, idx) => {
+            debugReport += `\nArchivo ${idx + 1}: ${d.name}\n`;
+            debugReport += `Palabras detectadas: ${d.wordCount}\n`;
+            debugReport += `Reconstrucción de rejilla: ${d.gridSuccess ? "✓ ÉXITO" : "✗ FALLÓ"}\n`;
+            if (window.__horarioDebug?.gridLog?.length) {
+              debugReport += "Log de reconstrucción:\n";
+              window.__horarioDebug.gridLog.forEach((l) => debugReport += "  - " + l + "\n");
+            }
+          });
+          debugReport += "\n=== TEXTO QUE SE PASÓ AL PARSER ===\n" + combined;
+          if (fileDebug.some(d => !d.gridSuccess)) {
+            debugReport += "\n\n=== TEXTO BRUTO DEL OCR (sin reconstruir) ===\n";
+            fileDebug.forEach((d) => {
+              if (!d.gridSuccess && d.rawText) debugReport += d.rawText + "\n\n";
+            });
+          }
+        }
+        setRawText(debugReport);
+
+        if (allTexts.length === 0) {
+          setError("No se pudo leer ningún archivo. Revisa que sean PDFs válidos o imágenes legibles.");
+          setStage("error");
+          return;
+        }
+
+        const classes = parseTecSchedule(combined);
+        if (classes.length === 0) {
+          setError("No encontré clases en los archivos. Revisa el debug abajo para ver qué leyó el OCR y por qué falló el reconstructor.");
+          setStage("error");
+          return;
+        }
+
+        // Dedup: si dos archivos tienen la misma clase (mismo code o mismo nombre+horario), conservar una
+        const seen = new Set();
+        const dedupClasses = [];
+        for (const c of classes) {
+          const key = c.code || `${c.name}-${c.schedule.map(s => `${s.day}${s.start}`).join(",")}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          dedupClasses.push(c);
+        }
+
+        setParsed(dedupClasses);
+        setStage("preview");
+      };
+
+      const handleFiles = (fileList) => {
+        if (!fileList || fileList.length === 0) return;
+        processFiles(fileList);
+      };
+
+      const onDrop = (e) => {
+        e.preventDefault();
+        setDragging(false);
+        handleFiles(e.dataTransfer.files);
+      };
+
+      const reset = () => {
+        setStage("upload");
+        setRawText("");
+        setShowRaw(false);
+        setFiles([]);
+        setError("");
+        setParsed([]);
+      };
+
+      return (
+        <div className="ht-modal-bg" onClick={(e) => e.target === e.currentTarget && onClose()}>
+          <div className="ht-modal">
+            <div className="ht-modal-header">
+              <div className="ht-modal-title">Importar horario</div>
+              <button className="ht-modal-close" onClick={onClose}>×</button>
+            </div>
+            <div className="ht-modal-body">
+              {stage === "upload" && (
+                <>
+                  <p style={{ color: "var(--fg-2)", fontSize: "0.9rem", marginTop: 0, marginBottom: 16, lineHeight: 1.5 }}>
+                    Sube uno o varios archivos (PDF o imágenes) de tu horario escolar. Extraigo materias, horarios, salones y los clasifico automáticamente.
+                  </p>
+                  <div
+                    className={`ht-drop ${dragging ? "dragging" : ""}`}
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={onDrop}
+                  >
+                    <div className="ht-drop-icon">📄🖼️</div>
+                    <div className="ht-drop-title">Suelta tus archivos aquí</div>
+                    <div className="ht-drop-sub">PDFs e imágenes (PNG, JPG) — uno o varios a la vez</div>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf,image/*"
+                    multiple
+                    style={{ display: "none" }}
+                    onChange={(e) => handleFiles(e.target.files)}
+                  />
+                  <div className="ht-ocr-warning">
+                    Las imágenes usan OCR (lectura por reconocimiento óptico). Tarda 5-20 segundos por imagen y la primera vez baja ~10 MB de datos. Funciona mejor con capturas claras y de alta resolución; las fotos a una pantalla con reflejos dan resultados regulares.
+                  </div>
+                </>
+              )}
+
+              {stage === "processing" && (
+                <>
+                  <p style={{ color: "var(--fg-2)", fontSize: "0.9rem", marginTop: 0, marginBottom: 4, fontFamily: "var(--display)", fontStyle: "italic", fontSize: "1.1rem" }}>
+                    Procesando archivos…
+                  </p>
+                  <p style={{ color: "var(--fg-3)", fontSize: "0.75rem", marginTop: 0, marginBottom: 16 }}>
+                    Las imágenes pueden tardar varios segundos. No cierres la ventana.
+                  </p>
+                  <div className="ht-file-list">
+                    {files.map((f, i) => (
+                      <div key={i} className="ht-file-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <span className="ht-file-icon">{f.type === "pdf" ? "📄" : "🖼️"}</span>
+                          <span className="ht-file-name">{f.name}</span>
+                          <span className={`ht-file-status ${f.status === "done" ? "done" : f.status === "error" ? "error" : f.status === "processing" ? "processing" : ""}`}>
+                            {f.status === "pending" && "esperando"}
+                            {f.status === "processing" && (f.type === "image" ? `${f.progress}%` : "leyendo…")}
+                            {f.status === "done" && "✓ listo"}
+                            {f.status === "error" && "✗ error"}
+                          </span>
+                        </div>
+                        {f.status === "processing" && f.type === "image" && (
+                          <div className="ht-progress-bar">
+                            <div className="ht-progress-fill" style={{ width: `${f.progress}%` }} />
+                          </div>
+                        )}
+                        {f.status === "error" && f.error && (
+                          <div style={{ fontSize: "0.7rem", color: "#C97268", marginLeft: 32 }}>{f.error}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {stage === "error" && (
+                <>
+                  <div className="ht-alert" style={{ background: "rgba(201,114,104,0.1)", borderColor: "rgba(201,114,104,0.3)", color: "#E89588" }}>
+                    {error}
+                  </div>
+                  {files.length > 0 && (
+                    <div className="ht-file-list">
+                      {files.map((f, i) => (
+                        <div key={i} className="ht-file-row">
+                          <span className="ht-file-icon">{f.type === "pdf" ? "📄" : "🖼️"}</span>
+                          <span className="ht-file-name">{f.name}</span>
+                          <span className={`ht-file-status ${f.status === "done" ? "done" : "error"}`}>
+                            {f.status === "done" ? "✓" : "✗"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {rawText && (
+                    <div style={{ marginBottom: 12 }}>
+                      <button className="ht-btn ht-btn-ghost" onClick={() => setShowRaw(!showRaw)} style={{ fontSize: "0.8rem" }}>
+                        {showRaw ? "▾ Ocultar" : "▸ Ver"} texto extraído (debug)
+                      </button>
+                      {showRaw && (
+                        <pre style={{ fontFamily: "var(--mono)", fontSize: "0.7rem", color: "var(--fg-3)", background: "var(--bg-3)", padding: 12, borderRadius: 8, maxHeight: 240, overflow: "auto", whiteSpace: "pre-wrap", marginTop: 8 }}>
+                          {rawText}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                  <button className="ht-btn ht-btn-secondary" onClick={reset} style={{ width: "100%" }}>
+                    Intentar de nuevo
+                  </button>
+                </>
+              )}
+
+              {stage === "preview" && (
+                <>
+                  <p style={{ color: "var(--fg-2)", fontSize: "0.9rem", marginTop: 0, marginBottom: 4 }}>
+                    Encontré <strong style={{ color: "var(--fg)" }}>{parsed.length} clase{parsed.length !== 1 ? "s" : ""}</strong> en {files.length} archivo{files.length !== 1 ? "s" : ""}. Revisa que esté bien:
+                  </p>
+                  {files.some(f => f.type === "image") && (
+                    <p style={{ color: "var(--fg-3)", fontSize: "0.72rem", marginTop: 0, marginBottom: 12, fontStyle: "italic" }}>
+                      Las imágenes pueden tener errores de OCR — verifica horarios con cuidado y edita después si algo está mal.
+                    </p>
+                  )}
+                  <div className="ht-preview-list">
+                    {parsed.map((c, i) => (
+                      <div key={i} className="ht-preview-item">
+                        <span className="ht-cat-dot" style={{ background: CATEGORIES[c.category]?.color }} />
+                        <div className="ht-preview-name">
+                          {c.name}
+                          <div className="ht-preview-meta" style={{ marginTop: 2 }}>
+                            {c.schedule.map((s) => `${DAYS[s.day]} ${s.start}-${s.end}`).join(" · ")}
+                            {c.room && ` · ${c.room}`}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {rawText && (
+                    <div style={{ marginBottom: 8 }}>
+                      <button className="ht-btn ht-btn-ghost" onClick={() => setShowRaw(!showRaw)} style={{ fontSize: "0.75rem", padding: "4px 8px" }}>
+                        {showRaw ? "▾ Ocultar" : "▸ Ver"} texto extraído (debug)
+                      </button>
+                      {showRaw && (
+                        <pre style={{ fontFamily: "var(--mono)", fontSize: "0.65rem", color: "var(--fg-3)", background: "var(--bg-3)", padding: 10, borderRadius: 8, maxHeight: 180, overflow: "auto", whiteSpace: "pre-wrap", marginTop: 6 }}>
+                          {rawText}
+                        </pre>
+                      )}
+                    </div>
+                  )}
+                  {hasExisting && (
+                    <div className="ht-alert" style={{ marginBottom: 12 }}>
+                      Ya tienes clases guardadas. Elige cómo combinarlas:
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                    <button className="ht-btn ht-btn-ghost" onClick={onClose}>Cancelar</button>
+                    {hasExisting && (
+                      <button className="ht-btn ht-btn-secondary" onClick={() => onImport(parsed, "merge")}>
+                        Agregar las nuevas
+                      </button>
+                    )}
+                    <button className="ht-btn ht-btn-primary" onClick={() => onImport(parsed, "replace")} style={{ marginLeft: "auto" }}>
+                      {hasExisting ? "Reemplazar todo" : `Importar ${parsed.length}`}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
